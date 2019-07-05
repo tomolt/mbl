@@ -196,15 +196,14 @@ static Expr * parse_binary(LexState * ls, int maxPrecedence)
 		BinOp op = as_binop(ls->token);
 		if (op == NOT_A_BINOP) return lhs;
 		int prec = PrecedenceTable[op];
-		if (prec > maxPrecedence) return lhs;
+		if (prec >= maxPrecedence) return lhs;
 		advance(ls);
 
-		Expr * rhs = parse_expr(ls);
+		Expr * rhs = parse_binary(ls, prec);
 		Expr * expr = malloc(sizeof(Expr));
 		expr->binop = (BinOpExpr) { EXPR_BINOP, op, lhs, rhs };
 		lhs = expr;
 	}
-	return lhs;
 }
 
 static Expr * parse_expr(LexState * ls)
