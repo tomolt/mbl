@@ -82,20 +82,18 @@ typedef enum {
 	tk_op_sub,
 } TokenType;
 
-struct State {
+typedef struct {
 	FILE * file;
 	char nextChar;
 	TokenType token;
 	unsigned long long tokenInteger;
 	jmp_buf * recovery;
 	int bad;
-};
+} LexState;
 
-static struct State State;
-
-static BinOp as_binop(void)
+static BinOp as_binop(TokenType token)
 {
-	switch (State.token) {
+	switch (token) {
 		case tk_op_mul: return op_mul;
 		case tk_op_div: return op_div;
 		case tk_op_mod: return op_mod;
@@ -105,76 +103,75 @@ static BinOp as_binop(void)
 	}
 }
 
-static void error(void)
+static void error(LexState * ls)
 {
-	State.bad = 1;
-	// longjmp(*State.recovery, 1);
-	assert(0);
+	ls->bad = 1;
+	longjmp(*ls->recovery, 1);
 }
 
-static void advance(void)
+static void advance(LexState * ls)
 {
-	while (isspace(State.nextChar)) {
-		State.nextChar = fgetc(State.file);
+	while (isspace(ls->nextChar)) {
+		ls->nextChar = fgetc(ls->file);
 	}
-	char c = State.nextChar;
+	char c = ls->nextChar;
 	if (isdigit(c)) {
-		State.tokenInteger = 0;
+		ls->tokenInteger = 0;
 		do {
-			State.tokenInteger = State.tokenInteger * 10 + (State.nextChar - '0');
-			State.nextChar = fgetc(State.file);
-		} while (isdigit(State.nextChar));
-		State.token = tk_integer;
+			ls->tokenInteger = ls->tokenInteger * 10 + (ls->nextChar - '0');
+			ls->nextChar = fgetc(ls->file);
+		} while (isdigit(ls->nextChar));
+		ls->token = tk_integer;
 	} else if (c == '+') {
-		State.nextChar = fgetc(State.file);
-		State.token = tk_op_add;
+		ls->nextChar = fgetc(ls->file);
+		ls->token = tk_op_add;
 	} else if (c == '-') {
-		State.nextChar = fgetc(State.file);
-		State.token = tk_op_sub;
+		ls->nextChar = fgetc(ls->file);
+		ls->token = tk_op_sub;
 	} else if (c == '*') {
-		State.nextChar = fgetc(State.file);
-		State.token = tk_op_mul;
+		ls->nextChar = fgetc(ls->file);
+		ls->token = tk_op_mul;
 	} else if (c == '/') {
-		State.nextChar = fgetc(State.file);
-		State.token = tk_op_div;
+		ls->nextChar = fgetc(ls->file);
+		ls->token = tk_op_div;
 	} else if (c == '%') {
-		State.nextChar = fgetc(State.file);
-		State.token = tk_op_mod;
+		ls->nextChar = fgetc(ls->file);
+		ls->token = tk_op_mod;
 	} else if (c == EOF) {
 		/* Intentionally don't update nextChar */
-		State.token = tk_end_of_file;
+		ls->token = tk_end_of_file;
 	} else {
-		error();
+		error(ls);
 	}
 }
 
-static void expect(TokenType type)
+static void expect(LexState * ls, TokenType type)
 {
-	if (State.token != type) {
-		error();
+	if (ls->token != type) {
+		error(ls);
 	}
 }
 
-static Expr * parse_integer(void)
+static Expr * parse_integer(LexState * ls)
 {
-	expect(tk_integer);
+	expect(ls, tk_integer);
 	Expr * expr = malloc(sizeof(Expr));
-	expr->integer = (IntegerExpr) { ex_integer, State.tokenInteger };
-	advance();
+	expr->integer = (IntegerExpr) { ex_integer, ls->tokenInteger };
+	advance(ls);
 	return expr;
 }
 
-static Expr * parse_expr(int maxPrecedence)
+static Expr * parse_expr(LexState * ls, int maxPrecedence)
 {
-	Expr * lhs = parse_integer();
+	Expr * lhs = parse_integer(ls);
 	for (;;) {
-		BinOp op = as_binop();
+		BinOp op = as_binop(ls->token);
 		if (op == not_a_binop) return lhs;
 		int prec = PrecedenceTable[op];
 		if (prec > maxPrecedence) return lhs;
-		advance();
+		advance(ls);
 
-		Expr * rhs = parse_expr(prec);
+		Expr * rhs = parse_expr(ls, prec);
 		Expr * expr = malloc(sizeof(Expr));
 		expr->binop = (BinOpExpr) { ex_binop, op, lhs, rhs };
 		lhs = expr;
@@ -182,10 +179,11 @@ static Expr * parse_expr(int maxPrecedence)
 	return lhs;
 }
 
-static void parse_file(void)
+static void parse_file(LexState * ls)
 {
-	while (State.token != tk_end_of_file) {
-		Expr * expr = parse_expr(100);
+	while (ls->token != tk_end_of_file) {
+		Expr * expr = parse_expr(ls, 100);
+		(void) expr;
 		printf("finished.\n");
 	}
 }
@@ -197,21 +195,22 @@ int main(int argc, char const * argv[])
 		return EXIT_FAILURE;
 	}
 
-	State.file = fopen(argv[1], "r");
-	if (State.file == NULL) {
+	LexState ls = { 0 };
+	ls.file = fopen(argv[1], "r");
+	if (ls.file == NULL) {
 		printf("can't open file '%s'\n", argv[1]);
 		return EXIT_FAILURE;
 	}
 
 	jmp_buf jmp;
 	if (setjmp(jmp) == 0) {
-		State.recovery = &jmp;
-		State.nextChar = fgetc(State.file);
-		advance();
-		parse_file();
+		ls.recovery = &jmp;
+		ls.nextChar = fgetc(ls.file);
+		advance(&ls);
+		parse_file(&ls);
 	}
 
-	fclose(State.file);
+	fclose(ls.file);
 	return EXIT_SUCCESS;
 }
 
