@@ -5,50 +5,50 @@
 #include <setjmp.h>
 
 typedef enum {
-	op_mul,
-	op_div,
-	op_mod,
+	BIN_MUL,
+	BIN_DIV,
+	BIN_MOD,
 
-	op_add,
-	op_sub,
+	BIN_ADD,
+	BIN_SUB,
 
 #if 0
-	op_logic_shift,
-	op_arith_shift,
-	op_left_shift,
+	BIN_LOGIC_SHIFT,
+	BIN_ARITH_SHIFT,
+	BIN_LEFT_SHIFT,
 	/* TODO bit rotate */
 
-	op_less_than,
-	op_less_equal,
-	op_more_than,
-	op_more_equal,
-	op_equal,
-	op_not_equal,
+	BIN_LESS_THAN,
+	BIN_LESS_EQUAL,
+	BIN_MORE_THAN,
+	BIN_MORE_EQUAL,
+	BIN_EQUAL,
+	BIN_NOT_EQUAL,
 
-	op_bit_and,
-	op_bit_or,
-	op_bit_xor,
+	BIN_BIT_AND,
+	BIN_BIT_OR,
+	BIN_BIT_XOR,
 
-	op_logic_and,
-	op_logic_or,
-	op_logic_xor,
+	BIN_LOGIC_AND,
+	BIN_LOGIC_OR,
+	BIN_LOGIC_XOR,
 #endif
 
-	not_a_binop
+	NOT_A_BINOP
 } BinOp;
 
 int const PrecedenceTable[] = {
-	[op_mul] = 0,
-	[op_div] = 0,
-	[op_mod] = 0,
+	[BIN_MUL] = 0,
+	[BIN_DIV] = 0,
+	[BIN_MOD] = 0,
 
-	[op_add] = 1,
-	[op_sub] = 1,
+	[BIN_ADD] = 1,
+	[BIN_SUB] = 1,
 };
 
 typedef enum {
-	ex_integer,
-	ex_binop,
+	EXPR_INTEGER,
+	EXPR_BINOP,
 } ExprType;
 
 typedef union Expr Expr;
@@ -72,14 +72,14 @@ union Expr {
 };
 
 typedef enum {
-	tk_end_of_file,
-	tk_identifier,
-	tk_integer,
-	tk_op_mul,
-	tk_op_div,
-	tk_op_mod,
-	tk_op_add,
-	tk_op_sub,
+	TK_END_OF_FILE,
+	TK_IDENTIFIER,
+	TK_INTEGER,
+	TK_ASTERISK,
+	TK_SLASH,
+	TK_PERCENT,
+	TK_PLUS,
+	TK_MINUS,
 } TokenType;
 
 typedef struct {
@@ -94,12 +94,12 @@ typedef struct {
 static BinOp as_binop(TokenType token)
 {
 	switch (token) {
-		case tk_op_mul: return op_mul;
-		case tk_op_div: return op_div;
-		case tk_op_mod: return op_mod;
-		case tk_op_add: return op_add;
-		case tk_op_sub: return op_sub;
-		default: return not_a_binop;
+		case TK_ASTERISK: return BIN_MUL;
+		case TK_SLASH: return BIN_DIV;
+		case TK_PERCENT: return BIN_MOD;
+		case TK_PLUS: return BIN_ADD;
+		case TK_MINUS: return BIN_SUB;
+		default: return NOT_A_BINOP;
 	}
 }
 
@@ -121,25 +121,25 @@ static void advance(LexState * ls)
 			ls->tokenInteger = ls->tokenInteger * 10 + (ls->nextChar - '0');
 			ls->nextChar = fgetc(ls->file);
 		} while (isdigit(ls->nextChar));
-		ls->token = tk_integer;
+		ls->token = TK_INTEGER;
 	} else if (c == '+') {
 		ls->nextChar = fgetc(ls->file);
-		ls->token = tk_op_add;
+		ls->token = TK_PLUS;
 	} else if (c == '-') {
 		ls->nextChar = fgetc(ls->file);
-		ls->token = tk_op_sub;
+		ls->token = TK_MINUS;
 	} else if (c == '*') {
 		ls->nextChar = fgetc(ls->file);
-		ls->token = tk_op_mul;
+		ls->token = TK_ASTERISK;
 	} else if (c == '/') {
 		ls->nextChar = fgetc(ls->file);
-		ls->token = tk_op_div;
+		ls->token = TK_SLASH;
 	} else if (c == '%') {
 		ls->nextChar = fgetc(ls->file);
-		ls->token = tk_op_mod;
+		ls->token = TK_PERCENT;
 	} else if (c == EOF) {
 		/* Intentionally don't update nextChar */
-		ls->token = tk_end_of_file;
+		ls->token = TK_END_OF_FILE;
 	} else {
 		error(ls);
 	}
@@ -154,9 +154,9 @@ static void expect(LexState * ls, TokenType type)
 
 static Expr * parse_integer(LexState * ls)
 {
-	expect(ls, tk_integer);
+	expect(ls, TK_INTEGER);
 	Expr * expr = malloc(sizeof(Expr));
-	expr->integer = (IntegerExpr) { ex_integer, ls->tokenInteger };
+	expr->integer = (IntegerExpr) { EXPR_INTEGER, ls->tokenInteger };
 	advance(ls);
 	return expr;
 }
@@ -166,14 +166,14 @@ static Expr * parse_expr(LexState * ls, int maxPrecedence)
 	Expr * lhs = parse_integer(ls);
 	for (;;) {
 		BinOp op = as_binop(ls->token);
-		if (op == not_a_binop) return lhs;
+		if (op == NOT_A_BINOP) return lhs;
 		int prec = PrecedenceTable[op];
 		if (prec > maxPrecedence) return lhs;
 		advance(ls);
 
 		Expr * rhs = parse_expr(ls, prec);
 		Expr * expr = malloc(sizeof(Expr));
-		expr->binop = (BinOpExpr) { ex_binop, op, lhs, rhs };
+		expr->binop = (BinOpExpr) { EXPR_BINOP, op, lhs, rhs };
 		lhs = expr;
 	}
 	return lhs;
@@ -181,7 +181,7 @@ static Expr * parse_expr(LexState * ls, int maxPrecedence)
 
 static void parse_file(LexState * ls)
 {
-	while (ls->token != tk_end_of_file) {
+	while (ls->token != TK_END_OF_FILE) {
 		Expr * expr = parse_expr(ls, 100);
 		(void) expr;
 		printf("finished.\n");
