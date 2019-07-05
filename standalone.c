@@ -80,6 +80,8 @@ typedef enum {
 	TK_PERCENT,
 	TK_PLUS,
 	TK_MINUS,
+	TK_LEFT_PAREN,
+	TK_RIGHT_PAREN,
 } TokenType;
 
 typedef struct {
@@ -95,11 +97,11 @@ static BinOp as_binop(TokenType token)
 {
 	switch (token) {
 		case TK_ASTERISK: return BIN_MUL;
-		case TK_SLASH: return BIN_DIV;
-		case TK_PERCENT: return BIN_MOD;
-		case TK_PLUS: return BIN_ADD;
-		case TK_MINUS: return BIN_SUB;
-		default: return NOT_A_BINOP;
+		case TK_SLASH:    return BIN_DIV;
+		case TK_PERCENT:  return BIN_MOD;
+		case TK_PLUS:     return BIN_ADD;
+		case TK_MINUS:    return BIN_SUB;
+		default:          return NOT_A_BINOP;
 	}
 }
 
@@ -137,6 +139,12 @@ static void advance(LexState * ls)
 	} else if (c == '%') {
 		ls->nextChar = fgetc(ls->file);
 		ls->token = TK_PERCENT;
+	} else if (c == '(') {
+		ls->nextChar = fgetc(ls->file);
+		ls->token = TK_LEFT_PAREN;
+	} else if (c == ')') {
+		ls->nextChar = fgetc(ls->file);
+		ls->token = TK_RIGHT_PAREN;
 	} else if (c == EOF) {
 		/* Intentionally don't update nextChar */
 		ls->token = TK_END_OF_FILE;
@@ -152,6 +160,8 @@ static void expect(LexState * ls, TokenType type)
 	}
 }
 
+static Expr * parse_expr(LexState * ls);
+
 static Expr * parse_integer(LexState * ls)
 {
 	expect(ls, TK_INTEGER);
@@ -161,9 +171,26 @@ static Expr * parse_integer(LexState * ls)
 	return expr;
 }
 
-static Expr * parse_expr(LexState * ls, int maxPrecedence)
+static Expr * parse_unary(LexState * ls)
 {
-	Expr * lhs = parse_integer(ls);
+	switch (ls->token) {
+		case TK_INTEGER:
+			return parse_integer(ls);
+		case TK_LEFT_PAREN:
+			advance(ls);
+			Expr * expr = parse_expr(ls);
+			expect(ls, TK_RIGHT_PAREN);
+			advance(ls);
+			return expr;
+		default:
+			error(ls);
+			return NULL;
+	}
+}
+
+static Expr * parse_binary(LexState * ls, int maxPrecedence)
+{
+	Expr * lhs = parse_unary(ls);
 	for (;;) {
 		BinOp op = as_binop(ls->token);
 		if (op == NOT_A_BINOP) return lhs;
@@ -171,7 +198,7 @@ static Expr * parse_expr(LexState * ls, int maxPrecedence)
 		if (prec > maxPrecedence) return lhs;
 		advance(ls);
 
-		Expr * rhs = parse_expr(ls, prec);
+		Expr * rhs = parse_expr(ls);
 		Expr * expr = malloc(sizeof(Expr));
 		expr->binop = (BinOpExpr) { EXPR_BINOP, op, lhs, rhs };
 		lhs = expr;
@@ -179,10 +206,15 @@ static Expr * parse_expr(LexState * ls, int maxPrecedence)
 	return lhs;
 }
 
+static Expr * parse_expr(LexState * ls)
+{
+	return parse_binary(ls, 100);
+}
+
 static void parse_file(LexState * ls)
 {
 	while (ls->token != TK_END_OF_FILE) {
-		Expr * expr = parse_expr(ls, 100);
+		Expr * expr = parse_expr(ls);
 		(void) expr;
 		printf("finished.\n");
 	}
