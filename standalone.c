@@ -105,9 +105,10 @@ static BinOp as_binop(TokenType token)
 	}
 }
 
-static void error(LexState * ls)
+static void error(LexState * ls, char const * msg)
 {
 	ls->bad = 1;
+	fprintf(stderr, "%s\n", msg);
 	longjmp(*ls->recovery, 1);
 }
 
@@ -149,14 +150,14 @@ static void advance(LexState * ls)
 		/* Intentionally don't update nextChar */
 		ls->token = TK_END_OF_FILE;
 	} else {
-		error(ls);
+		error(ls, "invalid character");
 	}
 }
 
 static void expect(LexState * ls, TokenType type)
 {
 	if (ls->token != type) {
-		error(ls);
+		error(ls, "unexpected token");
 	}
 }
 
@@ -183,7 +184,7 @@ static Expr * parse_unary(LexState * ls)
 			advance(ls);
 			return expr;
 		default:
-			error(ls);
+			error(ls, "invalid expression");
 			return NULL;
 	}
 }
