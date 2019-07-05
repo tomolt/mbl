@@ -211,33 +211,43 @@ static Expr * parse_expr(LexState * ls)
 	return parse_binary(ls, 100);
 }
 
-static void emit_expr(Expr * expr)
+typedef struct {
+	unsigned int stackTop;
+} EmitState;
+
+static unsigned int emit_expr(EmitState * es, Expr * expr)
 {
+	unsigned int lhs, rhs;
 	switch (expr->type) {
 		case EXPR_INTEGER:
-			printf("load %llu\n", expr->integer.value);
-			break;
+			lhs = es->stackTop++;
+			printf("\tload [%u], %llu\n", lhs, expr->integer.value);
+			return lhs;
 		case EXPR_BINOP:
-			emit_expr(expr->binop.lhs);
-			emit_expr(expr->binop.rhs);
+			lhs = emit_expr(es, expr->binop.lhs);
+			rhs = emit_expr(es, expr->binop.rhs);
+			--es->stackTop;
 			switch (expr->binop.op) {
 				case BIN_ADD:
-					printf("add\n");
+					printf("\tadd [%d], [%d]\n", lhs, rhs);
 					break;
 				case BIN_SUB:
-					printf("sub\n");
+					printf("\tsub [%d], [%d]\n", lhs, rhs);
 					break;
 				case BIN_MUL:
-					printf("mul\n");
+					printf("\tmul [%d], [%d]\n", lhs, rhs);
 					break;
 				case BIN_DIV:
-					printf("div\n");
+					printf("\tdiv [%d], [%d]\n", lhs, rhs);
 					break;
 				case BIN_MOD:
-					printf("mod\n");
+					printf("\tmod [%d], [%d]\n", lhs, rhs);
+					break;
+				default:
+					assert(0);
 					break;
 			}
-			break;
+			return lhs;
 	}
 }
 
@@ -245,7 +255,8 @@ static void parse_file(LexState * ls)
 {
 	while (ls->token != TK_END_OF_FILE) {
 		Expr * expr = parse_expr(ls);
-		emit_expr(expr);
+		EmitState es = { 0 };
+		emit_expr(&es, expr);
 	}
 }
 
