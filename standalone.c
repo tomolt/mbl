@@ -212,12 +212,41 @@ static Expr * parse_expr(LexState * ls)
 	return parse_binary(ls, 100);
 }
 
+static void emit_expr(Expr * expr)
+{
+	switch (expr->type) {
+		case EXPR_INTEGER:
+			printf("load %llu\n", expr->integer.value);
+			break;
+		case EXPR_BINOP:
+			emit_expr(expr->binop.lhs);
+			emit_expr(expr->binop.rhs);
+			switch (expr->binop.op) {
+				case BIN_ADD:
+					printf("add\n");
+					break;
+				case BIN_SUB:
+					printf("sub\n");
+					break;
+				case BIN_MUL:
+					printf("mul\n");
+					break;
+				case BIN_DIV:
+					printf("div\n");
+					break;
+				case BIN_MOD:
+					printf("mod\n");
+					break;
+			}
+			break;
+	}
+}
+
 static void parse_file(LexState * ls)
 {
 	while (ls->token != TK_END_OF_FILE) {
 		Expr * expr = parse_expr(ls);
-		(void) expr;
-		printf("finished.\n");
+		emit_expr(expr);
 	}
 }
 
