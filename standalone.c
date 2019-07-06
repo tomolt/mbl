@@ -257,24 +257,28 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 			es->stackTop -= 8;
 			switch (expr->binop.op) {
 				case BIN_ADD:
-					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
-					printf("\tadd\t[rbp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %u]\n", rhs);
+					printf("\tadd\t[rbp - %u],\trax\n", lhs);
 					break;
 				case BIN_SUB:
-					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
-					printf("\tsub\t[rbp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %u]\n", rhs);
+					printf("\tsub\t[rbp - %u],\trax\n", lhs);
 					break;
 				case BIN_MUL:
-					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
-					printf("\tmul\t[rbp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %u]\n", rhs);
+					printf("\timul\t[rbp - %u],\trax\n", lhs);
 					break;
 				case BIN_DIV:
-					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
-					printf("\tdiv\t[rbp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %u]\n", lhs);
+					printf("\txor\trdx,\trdx\n");
+					printf("\tdiv\t[rbp - %u]\n", rhs);
+					printf("\tmov\t[rbp - %u], rax\n", lhs);
 					break;
 				case BIN_MOD:
-					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
-					printf("\tmod\t[rbp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %u]\n", lhs);
+					printf("\txor\trdx,\trdx\n");
+					printf("\tdiv\t[rbp - %u]\n", rhs);
+					printf("\tmov\t[rbp - %u], rdx\n", lhs);
 					break;
 				default:
 					assert(0);
@@ -288,7 +292,7 @@ static void handle_expr(Expr * expr)
 {
 	EmitState es = { 0 };
 	unsigned int loc = emit_expr(&es, expr);
-	printf("\tmov\trax,\t[rbp - %d]\n", loc);
+	printf("\tmov\trax,\t[rbp - %u]\n", loc);
 	printf("\tcall\twrite_integer\n");
 }
 
