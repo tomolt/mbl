@@ -221,8 +221,8 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 	switch (expr->type) {
 		case EXPR_INTEGER:
 			lhs = es->stackTop++;
-			printf("\tmov rax,  %llu\n", expr->integer.value);
-			printf("\tmov [%u], rax\n", lhs);
+			printf("\tmov\trax,\t%llu\n", expr->integer.value);
+			printf("\tmov\t[%u],\trax\n", lhs);
 			return lhs;
 		case EXPR_BINOP:
 			lhs = emit_expr(es, expr->binop.lhs);
@@ -230,24 +230,24 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 			--es->stackTop;
 			switch (expr->binop.op) {
 				case BIN_ADD:
-					printf("\tmov rax,  [%d]\n", rhs);
-					printf("\tadd [%d], rax\n",  lhs);
+					printf("\tmov\trax,\t[%d]\n", rhs);
+					printf("\tadd\t[%d],\trax\n", lhs);
 					break;
 				case BIN_SUB:
-					printf("\tmov rax,  [%d]\n", rhs);
-					printf("\tsub [%d], rax\n",  lhs);
+					printf("\tmov\trax,\t[%d]\n", rhs);
+					printf("\tsub\t[%d],\trax\n", lhs);
 					break;
 				case BIN_MUL:
-					printf("\tmov rax,  [%d]\n", rhs);
-					printf("\tmul [%d], rax\n",  lhs);
+					printf("\tmov\trax,\t[%d]\n", rhs);
+					printf("\tmul\t[%d],\trax\n", lhs);
 					break;
 				case BIN_DIV:
-					printf("\tmov rax,  [%d]\n", rhs);
-					printf("\tdiv [%d], rax\n",  lhs);
+					printf("\tmov\trax,\t[%d]\n", rhs);
+					printf("\tdiv\t[%d],\trax\n", lhs);
 					break;
 				case BIN_MOD:
-					printf("\tmov rax,  [%d]\n", rhs);
-					printf("\tmod [%d], rax\n",  lhs);
+					printf("\tmov\trax,\t[%d]\n", rhs);
+					printf("\tmod\t[%d],\trax\n", lhs);
 					break;
 				default:
 					assert(0);
