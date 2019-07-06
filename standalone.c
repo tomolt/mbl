@@ -249,7 +249,7 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 			es->stackTop += 8;
 			lhs = es->stackTop;
 			printf("\tmov\trax,\t%llu\n", expr->integer.value);
-			printf("\tmov\t[ebp - %u],\trax\n", lhs);
+			printf("\tmov\t[rbp - %u],\trax\n", lhs);
 			return lhs;
 		case EXPR_BINOP:
 			lhs = emit_expr(es, expr->binop.lhs);
@@ -257,24 +257,24 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 			es->stackTop -= 8;
 			switch (expr->binop.op) {
 				case BIN_ADD:
-					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
-					printf("\tadd\t[ebp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
+					printf("\tadd\t[rbp - %d],\trax\n", lhs);
 					break;
 				case BIN_SUB:
-					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
-					printf("\tsub\t[ebp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
+					printf("\tsub\t[rbp - %d],\trax\n", lhs);
 					break;
 				case BIN_MUL:
-					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
-					printf("\tmul\t[ebp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
+					printf("\tmul\t[rbp - %d],\trax\n", lhs);
 					break;
 				case BIN_DIV:
-					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
-					printf("\tdiv\t[ebp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
+					printf("\tdiv\t[rbp - %d],\trax\n", lhs);
 					break;
 				case BIN_MOD:
-					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
-					printf("\tmod\t[ebp - %d],\trax\n", lhs);
+					printf("\tmov\trax,\t[rbp - %d]\n", rhs);
+					printf("\tmod\t[rbp - %d],\trax\n", lhs);
 					break;
 				default:
 					assert(0);
@@ -288,8 +288,8 @@ static void handle_expr(Expr * expr)
 {
 	EmitState es = { 0 };
 	unsigned int loc = emit_expr(&es, expr);
-	printf("\tmov\trax,\t[ebp - %d]\n", loc);
-	printf("\tcall write_integer\n");
+	printf("\tmov\trax,\t[rbp - %d]\n", loc);
+	printf("\tcall\twrite_integer\n");
 }
 
 static void parse_file(LexState * ls)
@@ -297,13 +297,17 @@ static void parse_file(LexState * ls)
 	printf("bits 64\n");
 	printf("section .text\n");
 	printf("extern write_integer\n");
+	printf("extern exit\n");
 	printf("global _start\n");
 	printf("_start:\n");
+	printf("\tmov\trbp,\trsp\n");
+	printf("\tsub\trsp,\t100\n");
 	while (ls->token != TK_END_OF_FILE) {
 		Expr * expr = parse_expr(ls);
 		check_expr(ls, expr);
 		handle_expr(expr);
 	}
+	printf("\tcall\texit\n");
 }
 
 int main(int argc, char const * argv[])

@@ -1,6 +1,9 @@
 bits 64
 section .text
+
 global write_integer
+global exit
+
 write_integer:
 	push rbp
 	mov rbp, rsp
@@ -13,8 +16,8 @@ write_integer:
 .loop:
 	xor rdx, rdx
 	div rcx
-	add rdx, 48
-	
+	add edx, 48
+
 	dec rsp
 	mov [rsp], dl
 
@@ -31,3 +34,9 @@ write_integer:
 	mov rsp, rbp
 	pop rbp
 	ret
+
+exit:
+	xor rdi, rdi
+	mov rax, 60
+	syscall
+
