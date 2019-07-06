@@ -221,10 +221,21 @@ static Expr * parse_expr(LexState * ls)
 	return parse_binary(ls, 100);
 }
 
-/* static void check_expr(Expr * expr)
+static Type check_expr(LexState * ls, Expr * expr)
 {
-
-} */
+	Type lhs, rhs;
+	switch (expr->info.kind) {
+		case EXPR_INTEGER:
+			return expr->info.type = TYPE_INTEGER;
+		case EXPR_BINOP:
+			lhs = check_expr(ls, expr->binop.lhs);
+			rhs = check_expr(ls, expr->binop.rhs);
+			if (lhs != rhs) {
+				error(ls, "type mismatch");
+			}
+			return expr->info.type = lhs;
+	}
+}
 
 typedef struct {
 	unsigned int stackTop;
@@ -283,6 +294,7 @@ static void parse_file(LexState * ls)
 	printf("bits 64\n");
 	while (ls->token != TK_END_OF_FILE) {
 		Expr * expr = parse_expr(ls);
+		check_expr(ls, expr);
 		handle_expr(expr);
 	}
 }
