@@ -287,13 +287,16 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 static void handle_expr(Expr * expr)
 {
 	EmitState es = { 0 };
-	emit_expr(&es, expr);
+	unsigned int loc = emit_expr(&es, expr);
+	printf("\tmov\trax,\t[ebp - %d]\n", loc);
+	printf("\tcall write_integer\n");
 }
 
 static void parse_file(LexState * ls)
 {
 	printf("bits 64\n");
 	printf("section .text\n");
+	printf("extern write_integer\n");
 	printf("global _start\n");
 	printf("_start:\n");
 	while (ls->token != TK_END_OF_FILE) {
