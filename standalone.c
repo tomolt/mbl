@@ -47,26 +47,36 @@ int const PrecedenceTable[] = {
 };
 
 typedef enum {
+	TYPE_UNKNOWN,
+	TYPE_INTEGER,
+} Type;
+
+typedef enum {
 	EXPR_INTEGER,
 	EXPR_BINOP,
-} ExprType;
+} ExprKind;
+
+typedef struct {
+	ExprKind kind;
+	Type type;
+} ExprInfo;
 
 typedef union Expr Expr;
 
 typedef struct {
-	ExprType type;
+	ExprInfo info;
 	unsigned long long value;
 } IntegerExpr;
 
 typedef struct {
-	ExprType type;
+	ExprInfo info;
 	BinOp op;
 	Expr * lhs;
 	Expr * rhs;
 } BinOpExpr;
 
 union Expr {
-	ExprType type;
+	ExprInfo info;
 	IntegerExpr integer;
 	BinOpExpr binop;
 };
@@ -167,7 +177,7 @@ static Expr * parse_integer(LexState * ls)
 {
 	expect(ls, TK_INTEGER);
 	Expr * expr = malloc(sizeof(Expr));
-	expr->integer = (IntegerExpr) { EXPR_INTEGER, ls->tokenInteger };
+	expr->integer = (IntegerExpr) { { EXPR_INTEGER, TYPE_UNKNOWN }, ls->tokenInteger };
 	advance(ls);
 	return expr;
 }
@@ -201,7 +211,7 @@ static Expr * parse_binary(LexState * ls, int maxPrecedence)
 
 		Expr * rhs = parse_binary(ls, prec);
 		Expr * expr = malloc(sizeof(Expr));
-		expr->binop = (BinOpExpr) { EXPR_BINOP, op, lhs, rhs };
+		expr->binop = (BinOpExpr) { { EXPR_BINOP, TYPE_UNKNOWN }, op, lhs, rhs };
 		lhs = expr;
 	}
 }
@@ -211,6 +221,11 @@ static Expr * parse_expr(LexState * ls)
 	return parse_binary(ls, 100);
 }
 
+/* static void check_expr(Expr * expr)
+{
+
+} */
+
 typedef struct {
 	unsigned int stackTop;
 } EmitState;
@@ -218,7 +233,7 @@ typedef struct {
 static unsigned int emit_expr(EmitState * es, Expr * expr)
 {
 	unsigned int lhs, rhs;
-	switch (expr->type) {
+	switch (expr->info.kind) {
 		case EXPR_INTEGER:
 			lhs = es->stackTop++;
 			printf("\tmov\trax,\t%llu\n", expr->integer.value);
