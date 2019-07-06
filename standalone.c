@@ -221,7 +221,8 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 	switch (expr->type) {
 		case EXPR_INTEGER:
 			lhs = es->stackTop++;
-			printf("\tload [%u], %llu\n", lhs, expr->integer.value);
+			printf("\tmov rax,  %llu\n", expr->integer.value);
+			printf("\tmov [%u], rax\n", lhs);
 			return lhs;
 		case EXPR_BINOP:
 			lhs = emit_expr(es, expr->binop.lhs);
@@ -229,19 +230,24 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 			--es->stackTop;
 			switch (expr->binop.op) {
 				case BIN_ADD:
-					printf("\tadd [%d], [%d]\n", lhs, rhs);
+					printf("\tmov rax,  [%d]\n", rhs);
+					printf("\tadd [%d], rax\n",  lhs);
 					break;
 				case BIN_SUB:
-					printf("\tsub [%d], [%d]\n", lhs, rhs);
+					printf("\tmov rax,  [%d]\n", rhs);
+					printf("\tsub [%d], rax\n",  lhs);
 					break;
 				case BIN_MUL:
-					printf("\tmul [%d], [%d]\n", lhs, rhs);
+					printf("\tmov rax,  [%d]\n", rhs);
+					printf("\tmul [%d], rax\n",  lhs);
 					break;
 				case BIN_DIV:
-					printf("\tdiv [%d], [%d]\n", lhs, rhs);
+					printf("\tmov rax,  [%d]\n", rhs);
+					printf("\tdiv [%d], rax\n",  lhs);
 					break;
 				case BIN_MOD:
-					printf("\tmod [%d], [%d]\n", lhs, rhs);
+					printf("\tmov rax,  [%d]\n", rhs);
+					printf("\tmod [%d], rax\n",  lhs);
 					break;
 				default:
 					assert(0);
@@ -251,12 +257,18 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 	}
 }
 
+static void handle_expr(Expr * expr)
+{
+	EmitState es = { 0 };
+	emit_expr(&es, expr);
+}
+
 static void parse_file(LexState * ls)
 {
+	printf("bits 64\n");
 	while (ls->token != TK_END_OF_FILE) {
 		Expr * expr = parse_expr(ls);
-		EmitState es = { 0 };
-		emit_expr(&es, expr);
+		handle_expr(expr);
 	}
 }
 
