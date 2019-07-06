@@ -246,34 +246,35 @@ static unsigned int emit_expr(EmitState * es, Expr * expr)
 	unsigned int lhs, rhs;
 	switch (expr->info.kind) {
 		case EXPR_INTEGER:
-			lhs = es->stackTop++;
+			es->stackTop += 8;
+			lhs = es->stackTop;
 			printf("\tmov\trax,\t%llu\n", expr->integer.value);
-			printf("\tmov\t[%u],\trax\n", lhs);
+			printf("\tmov\t[ebp - %u],\trax\n", lhs);
 			return lhs;
 		case EXPR_BINOP:
 			lhs = emit_expr(es, expr->binop.lhs);
 			rhs = emit_expr(es, expr->binop.rhs);
-			--es->stackTop;
+			es->stackTop -= 8;
 			switch (expr->binop.op) {
 				case BIN_ADD:
-					printf("\tmov\trax,\t[%d]\n", rhs);
-					printf("\tadd\t[%d],\trax\n", lhs);
+					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
+					printf("\tadd\t[ebp - %d],\trax\n", lhs);
 					break;
 				case BIN_SUB:
-					printf("\tmov\trax,\t[%d]\n", rhs);
-					printf("\tsub\t[%d],\trax\n", lhs);
+					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
+					printf("\tsub\t[ebp - %d],\trax\n", lhs);
 					break;
 				case BIN_MUL:
-					printf("\tmov\trax,\t[%d]\n", rhs);
-					printf("\tmul\t[%d],\trax\n", lhs);
+					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
+					printf("\tmul\t[ebp - %d],\trax\n", lhs);
 					break;
 				case BIN_DIV:
-					printf("\tmov\trax,\t[%d]\n", rhs);
-					printf("\tdiv\t[%d],\trax\n", lhs);
+					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
+					printf("\tdiv\t[ebp - %d],\trax\n", lhs);
 					break;
 				case BIN_MOD:
-					printf("\tmov\trax,\t[%d]\n", rhs);
-					printf("\tmod\t[%d],\trax\n", lhs);
+					printf("\tmov\trax,\t[ebp - %d]\n", rhs);
+					printf("\tmod\t[ebp - %d],\trax\n", lhs);
 					break;
 				default:
 					assert(0);
@@ -292,6 +293,9 @@ static void handle_expr(Expr * expr)
 static void parse_file(LexState * ls)
 {
 	printf("bits 64\n");
+	printf("section .text\n");
+	printf("global _start\n");
+	printf("_start:\n");
 	while (ls->token != TK_END_OF_FILE) {
 		Expr * expr = parse_expr(ls);
 		check_expr(ls, expr);
