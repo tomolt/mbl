@@ -1,1 +1,4 @@
 mbl
+test.asm
+*.o
+test
