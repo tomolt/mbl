@@ -326,15 +326,16 @@ static RtLoc emit_expr(EmitState * es, Expr * expr)
 	RtLoc loc, lhs, rhs;
 	switch (expr->info.kind) {
 		case EXPR_INTEGER:
-			loc = push_stack(es);
-			emit2("mov", RAX, (RtLoc) { LOC_LITERAL, expr->integer.value });
-			emit2("mov", loc, RAX);
-			return loc;
+			return (RtLoc) { LOC_LITERAL, expr->integer.value };
 		case EXPR_BINOP:
 			lhs = emit_expr(es, expr->binop.lhs);
 			rhs = emit_expr(es, expr->binop.rhs);
-			pop_stack(es);
-			pop_stack(es);
+			if (rhs.kind == LOC_STACK) {
+				pop_stack(es);
+			}
+			if (lhs.kind == LOC_STACK) {
+				pop_stack(es);
+			}
 			loc = push_stack(es);
 			switch (expr->binop.op) {
 				case BIN_ADD:
