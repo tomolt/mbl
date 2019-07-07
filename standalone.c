@@ -237,62 +237,146 @@ static Type check_expr(LexState * ls, Expr * expr)
 	}
 }
 
+typedef enum {
+	LOC_STACK,
+	LOC_REGISTER,
+	LOC_LITERAL,
+} RtLocKind;
+
+/* TODO correct integer values */
+#define RAX ((RtLoc) { LOC_REGISTER, 0 })
+#define RCX ((RtLoc) { LOC_REGISTER, 1 })
+#define RDX ((RtLoc) { LOC_REGISTER, 2 })
+#define RBX ((RtLoc) { LOC_REGISTER, 3 })
+#define RSI ((RtLoc) { LOC_REGISTER, 4 })
+#define RDI ((RtLoc) { LOC_REGISTER, 5 })
+#define RSP ((RtLoc) { LOC_REGISTER, 6 })
+#define RBP ((RtLoc) { LOC_REGISTER, 7 })
+
+char const * RegisterNames[] = {
+	"rax", "rcx", "rdx", "rbx", "rsi", "rdi", "rsp", "rbp",
+};
+
+typedef struct {
+	RtLocKind kind;
+	unsigned long long number;
+} RtLoc;
+
 typedef struct {
 	unsigned int stackTop;
 } EmitState;
 
-static unsigned int emit_expr(EmitState * es, Expr * expr)
+static void emit_rtloc(RtLoc loc)
 {
-	unsigned int lhs, rhs;
+	switch (loc.kind) {
+		case LOC_STACK:
+			printf("[rbp - %llu]", loc.number);
+			break;
+		case LOC_REGISTER:
+			printf("%s", RegisterNames[loc.number]);
+			break;
+		case LOC_LITERAL:
+			printf("%llu", loc.number);
+			break;
+	}
+}
+
+static RtLoc push_stack(EmitState * es)
+{
+	es->stackTop += 8;
+	return (RtLoc) { LOC_STACK, es->stackTop };
+}
+
+static void pop_stack(EmitState * es)
+{
+	es->stackTop -= 8;
+}
+
+static void emit1(char const *mnem, RtLoc arg)
+{
+	printf("\t%s\t", mnem);
+	emit_rtloc(arg);
+	printf("\n");
+}
+
+static void emit2(char const *mnem, RtLoc dst, RtLoc src)
+{
+	printf("\t%s\t", mnem);
+	emit_rtloc(dst);
+	printf(",\t");
+	emit_rtloc(src);
+	printf("\n");
+}
+
+static void emit_preamble(char const *name)
+{
+	printf("%s:\n", name);
+	emit1("push", RBP);
+	emit2("mov", RBP, RSP);
+}
+
+static void emit_postamble(void)
+{
+	emit2("mov", RSP, RBP);
+	emit1("pop", RBP);
+}
+
+static RtLoc emit_expr(EmitState * es, Expr * expr)
+{
+	RtLoc loc, lhs, rhs;
 	switch (expr->info.kind) {
 		case EXPR_INTEGER:
-			es->stackTop += 8;
-			lhs = es->stackTop;
-			printf("\tmov\trax,\t%llu\n", expr->integer.value);
-			printf("\tmov\t[rbp - %u],\trax\n", lhs);
-			return lhs;
+			loc = push_stack(es);
+			emit2("mov", RAX, (RtLoc) { LOC_LITERAL, expr->integer.value });
+			emit2("mov", loc, RAX);
+			return loc;
 		case EXPR_BINOP:
 			lhs = emit_expr(es, expr->binop.lhs);
 			rhs = emit_expr(es, expr->binop.rhs);
-			es->stackTop -= 8;
+			pop_stack(es);
+			pop_stack(es);
+			loc = push_stack(es);
 			switch (expr->binop.op) {
 				case BIN_ADD:
-					printf("\tmov\trax,\t[rbp - %u]\n", rhs);
-					printf("\tadd\t[rbp - %u],\trax\n", lhs);
+					emit2("mov", RAX, lhs);
+					emit2("add", RAX, rhs);
+					emit2("mov", loc, RAX);
 					break;
 				case BIN_SUB:
-					printf("\tmov\trax,\t[rbp - %u]\n", rhs);
-					printf("\tsub\t[rbp - %u],\trax\n", lhs);
+					emit2("mov", RAX, lhs);
+					emit2("sub", RAX, rhs);
+					emit2("mov", loc, RAX);
 					break;
 				case BIN_MUL:
-					printf("\tmov\trax,\t[rbp - %u]\n", rhs);
-					printf("\timul\t[rbp - %u],\trax\n", lhs);
+					emit2("mov", RAX, lhs);
+					emit2("imul", RAX, rhs);
+					emit2("mov", loc, RAX);
 					break;
 				case BIN_DIV:
-					printf("\tmov\trax,\t[rbp - %u]\n", lhs);
-					printf("\txor\trdx,\trdx\n");
-					printf("\tdiv\t[rbp - %u]\n", rhs);
-					printf("\tmov\t[rbp - %u], rax\n", lhs);
+					emit2("mov", RAX, lhs);
+					emit2("xor", RDX, RDX);
+					emit1("div", rhs);
+					emit2("mov", loc, RAX);
 					break;
 				case BIN_MOD:
-					printf("\tmov\trax,\t[rbp - %u]\n", lhs);
-					printf("\txor\trdx,\trdx\n");
-					printf("\tdiv\t[rbp - %u]\n", rhs);
-					printf("\tmov\t[rbp - %u], rdx\n", lhs);
+					emit2("mov", RAX, lhs);
+					emit2("xor", RDX, RDX);
+					emit1("div", rhs);
+					emit2("mov", loc, RDX);
 					break;
 				default:
 					assert(0);
 					break;
 			}
-			return lhs;
+			return loc;
 	}
 }
 
 static void handle_expr(Expr * expr)
 {
 	EmitState es = { 0 };
-	unsigned int loc = emit_expr(&es, expr);
-	printf("\tmov\trax,\t[rbp - %u]\n", loc);
+	RtLoc loc = emit_expr(&es, expr);
+	emit2("mov", RAX, loc);
 	printf("\tcall\twrite_integer\n");
 }
 
@@ -303,8 +387,7 @@ static void parse_file(LexState * ls)
 	printf("extern write_integer\n");
 	printf("extern exit\n");
 	printf("global _start\n");
-	printf("_start:\n");
-	printf("\tmov\trbp,\trsp\n");
+	emit_preamble("_start");
 	printf("\tsub\trsp,\t100\n");
 	while (ls->token != TK_END_OF_FILE) {
 		Expr * expr = parse_expr(ls);
@@ -312,6 +395,7 @@ static void parse_file(LexState * ls)
 		handle_expr(expr);
 	}
 	printf("\tcall\texit\n");
+	emit_postamble();
 }
 
 int main(int argc, char const * argv[])
