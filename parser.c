@@ -4,9 +4,11 @@
 
 #include "lexer.h"
 #include "expr.h"
+#include "target.h"
 #include "parser.h"
 
-Expr * parse_expr(LexState * ls);
+static Expr * parse_expr(LexState * ls);
+static void parse_block(LexState * ls, EmitState * es);
 
 static Expr * parse_integer(LexState * ls)
 {
@@ -72,8 +74,49 @@ static Expr * parse_binary(LexState * ls, int maxPrecedence)
 	}
 }
 
-Expr * parse_expr(LexState * ls)
+static Expr * parse_expr(LexState * ls)
 {
 	return parse_binary(ls, 100);
+}
+
+static void parse_stmt(LexState * ls, EmitState * es)
+{
+	if (ls->token == TK_LEFT_BRACE) {
+		parse_block(ls, es);
+	} else {
+		Expr * expr = parse_expr(ls);
+		RtLoc loc = emit_expr(es, expr);
+		emit2("mov", RAX, loc);
+		printf("\tcall\twrite_integer\n");
+		/* if (loc.kind == LOC_STACK) {
+			pop_stack(es);
+		} */
+	}
+}
+
+static void parse_block(LexState * ls, EmitState * es)
+{
+	expect(ls, TK_LEFT_BRACE);
+	advance(ls);
+	while (ls->token != TK_RIGHT_BRACE) {
+		parse_stmt(ls, es);
+	}
+	advance(ls);
+}
+
+void parse_file(LexState * ls, EmitState * es)
+{
+	printf("bits 64\n");
+	printf("section .text\n");
+	printf("extern write_integer\n");
+	printf("extern exit\n");
+	printf("global _start\n");
+	emit_preamble("_start");
+	printf("\tsub\trsp,\t100\n");
+	while (ls->token != TK_END_OF_FILE) {
+		parse_stmt(ls, es);
+	}
+	printf("\tcall\texit\n");
+	emit_postamble();
 }
 

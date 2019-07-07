@@ -61,6 +61,7 @@ void emit_postamble(void)
 {
 	emit2("mov", RSP, RBP);
 	emit1("pop", RBP);
+	printf("\tret\n");
 }
 
 RtLoc emit_expr(EmitState * es, Expr * expr)
@@ -113,5 +114,24 @@ RtLoc emit_expr(EmitState * es, Expr * expr)
 			}
 			return loc;
 	}
+}
+
+unsigned int emit_label(EmitState * es)
+{
+	unsigned int label = es->nextLabel++;
+	printf(".l%08x:\n", label);
+	return label;
+}
+
+void emit_branch(RtLoc cond, unsigned int label)
+{
+	emit2("mov", RAX, cond);
+	emit2("cmp", RAX, (RtLoc) { LOC_LITERAL, 0 });
+	printf("\tjne\t.l%08x\n", label);
+}
+
+void emit_jump(unsigned int label)
+{
+	printf("\tjmp\t.l%08x\n", label);
 }
 

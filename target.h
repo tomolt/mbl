@@ -18,6 +18,7 @@ typedef struct {
 
 typedef struct {
 	unsigned int stackTop;
+	unsigned int nextLabel;
 } EmitState;
 
 /* TODO correct integer values */
@@ -35,4 +36,6 @@ void emit2(char const *mnem, RtLoc dst, RtLoc src);
 void emit_preamble(char const *name);
 void emit_postamble(void);
 RtLoc emit_expr(EmitState * es, Expr * expr);
-
+unsigned int emit_label(EmitState * es);
+void emit_branch(RtLoc cond, unsigned int label);
+void emit_jump(unsigned int label);

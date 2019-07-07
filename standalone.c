@@ -5,9 +5,10 @@
 
 #include "lexer.h"
 #include "expr.h"
-#include "parser.h"
 #include "target.h"
+#include "parser.h"
 
+#if 0
 static Type check_expr(LexState * ls, Expr * expr)
 {
 	Type lhs, rhs;
@@ -23,32 +24,7 @@ static Type check_expr(LexState * ls, Expr * expr)
 			return expr->info.type = lhs;
 	}
 }
-
-static void handle_expr(Expr * expr)
-{
-	EmitState es = { 0 };
-	RtLoc loc = emit_expr(&es, expr);
-	emit2("mov", RAX, loc);
-	printf("\tcall\twrite_integer\n");
-}
-
-static void parse_file(LexState * ls)
-{
-	printf("bits 64\n");
-	printf("section .text\n");
-	printf("extern write_integer\n");
-	printf("extern exit\n");
-	printf("global _start\n");
-	emit_preamble("_start");
-	printf("\tsub\trsp,\t100\n");
-	while (ls->token != TK_END_OF_FILE) {
-		Expr * expr = parse_expr(ls);
-		check_expr(ls, expr);
-		handle_expr(expr);
-	}
-	printf("\tcall\texit\n");
-	emit_postamble();
-}
+#endif
 
 int main(int argc, char const * argv[])
 {
@@ -63,13 +39,14 @@ int main(int argc, char const * argv[])
 		printf("can't open file '%s'\n", argv[1]);
 		return EXIT_FAILURE;
 	}
+	EmitState es = { 0 };
 
 	jmp_buf jmp;
 	if (setjmp(jmp) == 0) {
 		ls.recovery = &jmp;
 		ls.nextChar = fgetc(ls.file);
 		advance(&ls);
-		parse_file(&ls);
+		parse_file(&ls, &es);
 	}
 
 	fclose(ls.file);

@@ -17,6 +17,10 @@ typedef enum {
 	TK_MINUS,
 	TK_LEFT_PAREN,
 	TK_RIGHT_PAREN,
+	TK_LEFT_BRACE,
+	TK_RIGHT_BRACE,
+	TK_KEYWORD_IF,
+	TK_KEYWORD_ELSE,
 } TokenType;
 
 typedef struct {

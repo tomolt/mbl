@@ -11,6 +11,11 @@ void error(LexState * ls, char const * msg)
 	longjmp(*ls->recovery, 1);
 }
 
+static int issymbol(char c)
+{
+	return isalnum(c) || c == '_';
+}
+
 void advance(LexState * ls)
 {
 	while (isspace(ls->nextChar)) {
@@ -24,6 +29,22 @@ void advance(LexState * ls)
 			ls->nextChar = fgetc(ls->file);
 		} while (isdigit(ls->nextChar));
 		ls->token = TK_INTEGER;
+	} else if (issymbol(c)) {
+		/* TODO guard against overflow */
+		char buf[100];
+		int i = 0;
+		do {
+			buf[i++] = ls->nextChar;
+			ls->nextChar = fgetc(ls->file);
+		} while (issymbol(ls->nextChar));
+		buf[i] = '\0';
+		if (strcmp(buf, "if") == 0) {
+			ls->token = TK_KEYWORD_IF;
+		} else if (strcmp(buf, "else") == 0) {
+			ls->token = TK_KEYWORD_ELSE;
+		} else {
+			error(ls, "no symbols allowed right now.");
+		}
 	} else if (c == '+') {
 		ls->nextChar = fgetc(ls->file);
 		ls->token = TK_PLUS;
@@ -45,6 +66,12 @@ void advance(LexState * ls)
 	} else if (c == ')') {
 		ls->nextChar = fgetc(ls->file);
 		ls->token = TK_RIGHT_PAREN;
+	} else if (c == '{') {
+		ls->nextChar = fgetc(ls->file);
+		ls->token = TK_LEFT_BRACE;
+	} else if (c == '}') {
+		ls->nextChar = fgetc(ls->file);
+		ls->token = TK_RIGHT_BRACE;
 	} else if (c == EOF) {
 		/* Intentionally don't update nextChar */
 		ls->token = TK_END_OF_FILE;
