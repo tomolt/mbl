@@ -2,3 +2,4 @@ mbl
 test.asm
 *.o
 test
+build
