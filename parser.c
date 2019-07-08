@@ -88,9 +88,9 @@ static void parse_stmt(LexState * ls, EmitState * es)
 		RtLoc loc = emit_expr(es, expr);
 		emit2("mov", RAX, loc);
 		printf("\tcall\twrite_integer\n");
-		/* if (loc.kind == LOC_STACK) {
-			pop_stack(es);
-		} */
+		free_rtloc(es, loc);
+		expect(ls, TK_SEMICOLON);
+		advance(ls);
 	}
 }
 

@@ -31,6 +31,8 @@ typedef struct {
 #define RSP ((RtLoc) { LOC_REGISTER, 6 })
 #define RBP ((RtLoc) { LOC_REGISTER, 7 })
 
+RtLoc alloc_stack(EmitState * es);
+void free_rtloc(EmitState * es, RtLoc loc);
 void emit1(char const *mnem, RtLoc arg);
 void emit2(char const *mnem, RtLoc dst, RtLoc src);
 void emit_preamble(char const *name);

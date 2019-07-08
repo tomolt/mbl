@@ -23,15 +23,18 @@ static void emit_rtloc(RtLoc loc)
 	}
 }
 
-static RtLoc push_stack(EmitState * es)
+RtLoc alloc_stack(EmitState * es)
 {
 	es->stackTop += 8;
 	return (RtLoc) { LOC_STACK, es->stackTop };
 }
 
-static void pop_stack(EmitState * es)
+void free_rtloc(EmitState * es, RtLoc loc)
 {
-	es->stackTop -= 8;
+	if (loc.kind == LOC_STACK) {
+		assert(loc.number == es->stackTop);
+		es->stackTop -= 8;
+	}
 }
 
 void emit1(char const *mnem, RtLoc arg)
@@ -73,12 +76,8 @@ RtLoc emit_expr(EmitState * es, Expr * expr)
 		case EXPR_BINOP:
 			lhs = emit_expr(es, expr->binop.lhs);
 			rhs = emit_expr(es, expr->binop.rhs);
-			if (rhs.kind == LOC_STACK) {
-				pop_stack(es);
-			}
-			if (lhs.kind == LOC_STACK) {
-				pop_stack(es);
-			}
+			free_rtloc(es, rhs);
+			free_rtloc(es, lhs);
 			loc = push_stack(es);
 			switch (expr->binop.op) {
 				case BIN_ADD:

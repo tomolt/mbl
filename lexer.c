@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <setjmp.h>
 #include <ctype.h>
 
@@ -60,6 +61,9 @@ void advance(LexState * ls)
 	} else if (c == '%') {
 		ls->nextChar = fgetc(ls->file);
 		ls->token = TK_PERCENT;
+	} else if (c == ';') {
+		ls->nextChar = fgetc(ls->file);
+		ls->token = TK_SEMICOLON;
 	} else if (c == '(') {
 		ls->nextChar = fgetc(ls->file);
 		ls->token = TK_LEFT_PAREN;
